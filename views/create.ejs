@@ -1,0 +1,29 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main class="container narrow section page-enter">
+  <h1>Create a meeting</h1>
+  <form id="create-form" class="panel">
+    <label>Meeting name<input name="name" maxlength="60" placeholder="Weekly sync" required></label>
+    <label>Expires after
+      <select name="minutes">
+        <option value="15">15 minutes</option><option value="30">30 minutes</option>
+        <option value="60" selected>60 minutes (default)</option><option value="120">2 hours</option>
+        <option value="480">8 hours</option><option value="1440">24 hours</option>
+      </select></label>
+    <fieldset><legend>Who can see the expiry time?</legend>
+      <label class="check"><input type="radio" name="expiryVisibleTo" value="everyone" checked> Everyone in the meeting</label>
+      <label class="check"><input type="radio" name="expiryVisibleTo" value="admin"> Only me (the host)</label></fieldset>
+    <button class="btn btn-primary btn-lg"><%- include('partials/icon', { n: 'link' }) %> Generate passcode and link</button>
+  </form>
+  <div id="result" class="panel result" hidden>
+    <h2>Your meeting is ready</h2>
+    <p>Passcode <strong id="out-code" class="code"></strong>
+      <button class="icon-btn" data-copy="#out-code" aria-label="Copy passcode"><%- include('partials/icon', { n: 'copy' }) %></button></p>
+    <p>Link <span id="out-link"></span>
+      <button class="icon-btn" data-copy="#out-link" aria-label="Copy link"><%- include('partials/icon', { n: 'copy' }) %></button></p>
+    <a id="out-start" class="btn btn-primary btn-lg">Start meeting</a>
+  </div>
+</main>
+<%- include('partials/footer') %>
+<script src="/js/create.js" defer></script>
+</body></html>

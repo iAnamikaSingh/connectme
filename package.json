@@ -1,0 +1,8 @@
+{
+  "name": "connectme",
+  "version": "1.0.0",
+  "description": "Instant, expiring meeting rooms with chat, video, voice and screen share.",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "ejs": "^3.1.10", "express": "^4.19.2", "socket.io": "^4.7.5" }
+}

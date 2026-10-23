@@ -1,0 +1,28 @@
+<button class="btn btn-primary bot-toggle" id="bot-toggle" aria-label="Chat with Nick"><img class="bot-toggle-avatar" src="/images/botPhoto.png" alt=""></button>
+<section class="bot-panel" id="bot-panel" aria-label="Chat with Nick, your virtual AI assistant" hidden>
+  <header class="bot-header">
+    <img class="bot-avatar" src="/images/botPhoto.png" alt="Nick">
+    <div class="bot-heading">
+      <strong>Nick <span class="bot-online" aria-label="online"></span></strong>
+      <span class="bot-subtitle">Your virtual AI Assistant</span>
+    </div>
+    <div class="bot-header-actions">
+      <button type="button" class="bot-sound" id="bot-sound" aria-pressed="true">Sound on</button>
+      <button type="button" class="bot-sound" id="bot-voice" aria-pressed="true">Voice on</button>
+      <button type="button" class="icon-btn" id="bot-close" aria-label="Close chat"><%- include('icon', { n: 'x' }) %></button>
+    </div>
+  </header>
+  <div class="bot-messages" id="bot-messages" aria-live="polite"></div>
+  <div class="bot-suggestions" id="bot-suggestions" aria-label="Suggested questions" hidden>
+    <span>Try asking</span>
+    <button type="button">How do I start a meeting?</button>
+    <button type="button">How do I join with a passcode?</button>
+    <button type="button">Can I share my screen?</button>
+    <button type="button">Is connectme free?</button>
+  </div>
+  <form class="bot-form" id="bot-form">
+    <input id="bot-input" placeholder="Message Nick…" autocomplete="off" aria-label="Your message">
+    <button type="button" class="icon-btn" id="bot-mic" aria-label="Dictate"><%- include('icon', { n: 'mic' }) %></button>
+    <button class="btn btn-primary icon-only" aria-label="Send"><%- include('icon', { n: 'send' }) %></button>
+  </form>
+</section>

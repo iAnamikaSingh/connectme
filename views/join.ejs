@@ -1,0 +1,13 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main class="container narrow section page-enter">
+  <h1>Join a meeting</h1>
+  <form id="join-form" class="panel">
+    <label>Passcode<input name="code" maxlength="8" placeholder="A1B2C3D4" autocomplete="off" required></label>
+    <p id="join-error" class="error" role="alert" hidden>That passcode isn't valid or the meeting has expired.</p>
+    <button class="btn btn-primary btn-lg">Join meeting</button>
+  </form>
+</main>
+<%- include('partials/footer') %>
+<script src="/js/join.js" defer></script>
+</body></html>

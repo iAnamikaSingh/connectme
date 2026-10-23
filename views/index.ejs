@@ -1,0 +1,37 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <section class="hero container">
+    <div class="hero-copy">
+      <h1>Meet anyone, instantly.</h1>
+      <p class="lead">Create a private room, share a passcode, and talk, chat, present and share images. It all runs in the browser.</p>
+      <div class="actions">
+        <a href="/create" class="btn btn-primary btn-lg"><%- include('partials/icon', { n: 'video' }) %> Start a meeting</a>
+        <a href="/join" class="btn btn-accent btn-lg"><%- include('partials/icon', { n: 'lock' }) %> Join with passcode</a>
+      </div>
+    </div>
+    <div class="hero-art">
+      <img src="/images/HeroImage.webp" alt="Preview of a connectme meeting with video, chat and screen sharing" fetchpriority="high">
+    </div>
+  </section>
+  <section class="container section" id="features">
+    <h2>Everything a meeting needs</h2>
+    <div class="grid">
+      <% features.forEach((f) => { %>
+      <article class="card">
+        <div class="card-img"><img src="/images/<%= f.img %>" alt="<%= f.alt %>" loading="lazy" onerror="this.remove()"></div>
+        <h3><%- include('partials/icon', { n: f.id }) %> <%= f.title %></h3>
+        <p><%= f.text %></p>
+      </article>
+      <% }) %>
+    </div>
+  </section>
+  <section class="container section narrow" id="faq">
+    <h2>Frequently asked questions</h2>
+    <% faqs.forEach((f) => { %>
+    <details class="faq"><summary><%= f.q %></summary><p><%= f.a %></p></details>
+    <% }) %>
+  </section>
+</main>
+<%- include('partials/footer') %>
+</body></html>

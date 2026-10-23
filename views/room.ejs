@@ -1,0 +1,57 @@
+<% const bodyClass = 'in-room'; %>
+<%- include('partials/head', { bodyClass }) %>
+<div class="room" id="room" data-code="<%= room.code %>">
+  <header class="room-bar">
+    <a href="/" class="logo" title="Return to connectme home"><img src="/favicon.svg" alt="" width="28" height="28"><span>connectme</span></a>
+    <div class="room-heading">
+      <strong><%= room.name %></strong>
+      <span><span class="room-live-dot"></span> Meeting in progress</span>
+    </div>
+    <span class="timer" id="timer" title="Time remaining in this meeting" hidden><%- include('partials/icon', { n: 'clock' }) %> <span id="timer-text"></span></span>
+  </header>
+  <div class="room-body">
+    <main class="tiles" id="tiles" aria-label="Meeting participants"></main>
+    <aside class="chat" aria-label="Meeting chat">
+      <div class="chat-heading">
+        <strong><%- include('partials/icon', { n: 'chat' }) %> Meeting chat</strong>
+        <span>Messages and shared images</span>
+      </div>
+      <div class="chat-log" id="chat-log" aria-live="polite"></div>
+      <form class="chat-form" id="chat-form">
+        <label class="icon-btn" title="Attach an image" aria-label="Attach an image"><%- include('partials/icon', { n: 'image' }) %>
+          <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden></label>
+        <input id="chat-input" placeholder="Message everyone" autocomplete="off" aria-label="Message">
+        <button class="btn btn-primary icon-only" title="Send message" aria-label="Send message"><%- include('partials/icon', { n: 'send' }) %></button>
+      </form>
+    </aside>
+  </div>
+  <footer class="controls" aria-label="Meeting controls">
+    <button class="ctl" id="btn-mic" type="button" title="Turn microphone off" aria-label="Turn microphone off" aria-pressed="true">
+      <%- include('partials/icon', { n: 'mic' }) %><span class="ctl-caption"><span>Microphone</span><small id="mic-state">On</small></span>
+    </button>
+    <button class="ctl" id="btn-cam" type="button" title="Turn camera off" aria-label="Turn camera off" aria-pressed="true">
+      <%- include('partials/icon', { n: 'video' }) %><span class="ctl-caption"><span>Camera</span><small id="cam-state">On</small></span>
+    </button>
+    <button class="ctl" id="btn-screen" type="button" title="Share your screen" aria-label="Share your screen" aria-pressed="false">
+      <%- include('partials/icon', { n: 'screen' }) %><span class="ctl-caption"><span>Share screen</span><small id="screen-state">Start</small></span>
+    </button>
+    <a class="ctl ctl-leave" href="/" title="Leave this meeting" aria-label="Leave this meeting">
+      <%- include('partials/icon', { n: 'phone' }) %><span class="ctl-caption"><span>Leave</span><small>Meeting</small></span>
+    </a>
+  </footer>
+  <div class="overlay" id="join-overlay">
+    <form class="panel" id="name-form">
+      <h1><%= room.name %></h1>
+      <label>Your name<input id="name-input" maxlength="40" required autofocus></label>
+      <button class="btn btn-primary btn-lg">Join now</button>
+    </form>
+  </div>
+  <div class="overlay" id="expired-overlay" hidden>
+    <div class="panel"><h1>This meeting has ended</h1><a href="/create" class="btn btn-primary btn-lg">Start a new one</a></div>
+  </div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/room.js"></script>
+<%- include('partials/chatbot') %>
+<script src="/js/chatbot.js" defer></script>
+</body></html>
