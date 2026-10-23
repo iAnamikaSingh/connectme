@@ -3,7 +3,7 @@ const rooms = require('./rooms');
 const { faqs, features } = require('./content');
 
 const router = express.Router();
-const SITE_URL = (process.env.SITE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+const SITE_URL = (process.env.SITE_URL || 'https://connectme-ljee.onrender.com').replace(/\/+$/, '');
 
 const jsonLd = () => JSON.stringify([
   { '@context': 'https://schema.org', '@type': 'WebSite', name: 'connectme', url: SITE_URL },

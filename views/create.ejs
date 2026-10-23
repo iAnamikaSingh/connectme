@@ -13,14 +13,26 @@
     <fieldset><legend>Who can see the expiry time?</legend>
       <label class="check"><input type="radio" name="expiryVisibleTo" value="everyone" checked> Everyone in the meeting</label>
       <label class="check"><input type="radio" name="expiryVisibleTo" value="admin"> Only me (the host)</label></fieldset>
+    <p id="create-error" class="error" role="alert" hidden></p>
     <button class="btn btn-primary btn-lg"><%- include('partials/icon', { n: 'link' }) %> Generate passcode and link</button>
   </form>
   <div id="result" class="panel result" hidden>
     <h2>Your meeting is ready</h2>
-    <p>Passcode <strong id="out-code" class="code"></strong>
-      <button class="icon-btn" data-copy="#out-code" aria-label="Copy passcode"><%- include('partials/icon', { n: 'copy' }) %></button></p>
-    <p>Link <span id="out-link"></span>
-      <button class="icon-btn" data-copy="#out-link" aria-label="Copy link"><%- include('partials/icon', { n: 'copy' }) %></button></p>
+    <p class="result-intro">Share both details with the people you want to invite.</p>
+    <label class="generated-detail">Meeting passcode
+      <span class="copy-row">
+        <input id="out-code" class="code" readonly aria-label="Meeting passcode">
+        <button type="button" class="btn btn-primary copy-button" data-copy="#out-code" data-copy-label="Copy passcode" aria-label="Copy meeting passcode"><%- include('partials/icon', { n: 'copy' }) %><span>Copy</span></button>
+      </span>
+      <span class="copy-feedback" id="code-copy-feedback" role="status" aria-live="polite"></span>
+    </label>
+    <label class="generated-detail">Meeting link
+      <span class="copy-row">
+        <input id="out-link" type="url" readonly aria-label="Meeting link">
+        <button type="button" class="btn btn-primary copy-button" data-copy="#out-link" data-copy-label="Copy link" aria-label="Copy meeting link"><%- include('partials/icon', { n: 'copy' }) %><span>Copy</span></button>
+      </span>
+      <span class="copy-feedback" id="link-copy-feedback" role="status" aria-live="polite"></span>
+    </label>
     <a id="out-start" class="btn btn-primary btn-lg">Start meeting</a>
   </div>
 </main>
