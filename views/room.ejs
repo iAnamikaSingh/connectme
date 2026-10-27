@@ -8,12 +8,16 @@
       <span><span class="room-live-dot"></span> Meeting room</span>
     </div>
     <span class="timer" id="timer" title="Time remaining in this meeting" hidden><%- include('partials/icon', { n: 'clock' }) %> <span id="timer-text"></span></span>
+    <div class="room-exit-actions">
+      <button class="btn btn-danger" id="end-meeting" type="button" hidden>End meeting</button>
+      <button class="btn btn-light" id="leave-meeting" type="button" disabled>Leave meeting</button>
+    </div>
   </header>
   <div class="room-body">
     <main class="chat" aria-label="Meeting chat">
       <div class="chat-heading">
         <strong><%- include('partials/icon', { n: 'chat' }) %> Meeting chat</strong>
-        <span>Messages, images, PDFs up to 4 MB, and videos up to 5 MB</span>
+        <span>Photos/GIFs ≤ 4.5 MB · PDFs ≤ 4 MB · videos and voice notes ≤ 5 MB</span>
       </div>
       <section class="room-call-panel" aria-label="Call controls">
         <div>
@@ -30,8 +34,18 @@
       </section>
       <div class="chat-log" id="chat-log" aria-live="polite"></div>
       <form class="chat-form" id="chat-form">
-        <label class="icon-btn" title="Attach an image, PDF, or video" aria-label="Attach an image, PDF, or video"><%- include('partials/icon', { n: 'image' }) %>
-          <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,video/mp4,video/webm" hidden></label>
+        <details class="attach-menu" id="attach-menu">
+          <summary class="icon-btn" title="Choose a file type to share" aria-label="Choose a file type to share"><%- include('partials/icon', { n: 'image' }) %></summary>
+          <div class="attach-options">
+            <strong>Share a file</strong>
+            <button type="button" data-accept="image/png,image/jpeg,image/gif,image/webp">Photo or GIF <small>up to 4.5 MB</small></button>
+            <button type="button" data-accept="video/mp4,video/webm">Video <small>MP4 or WebM, up to 5 MB</small></button>
+            <button type="button" data-accept="application/pdf">PDF <small>up to 4 MB</small></button>
+          </div>
+          <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,video/mp4,video/webm" hidden>
+        </details>
+        <button class="icon-btn voice-note-button" id="record-voice" type="button" title="Record a voice message" aria-label="Record a voice message" aria-pressed="false"><%- include('partials/icon', { n: 'mic' }) %></button>
+        <span class="voice-note-status" id="voice-note-status" role="status" hidden></span>
         <input id="chat-input" placeholder="Message everyone" autocomplete="off" aria-label="Message">
         <button class="btn btn-primary icon-only" title="Send message" aria-label="Send message"><%- include('partials/icon', { n: 'send' }) %></button>
       </form>

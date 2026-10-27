@@ -51,6 +51,9 @@
   };
 
   const renderControls = () => {
+    $('end-meeting').hidden = !isAdmin;
+    $('end-meeting').disabled = !socket.connected || !roomJoined;
+    $('leave-meeting').disabled = !socket.connected || !roomJoined;
     $('call-join').hidden = joined;
     $('call-join').disabled = !call || !socket.connected || !roomJoined;
     $('call-join').textContent = call ? `Join ${call.type} call` : 'Waiting for call';
@@ -243,6 +246,25 @@
 
   socket.on('signal', (message) => {
     receiveSignal(message).catch((error) => showError(`Call connection failed: ${error.message}`));
+  });
+
+  $('leave-meeting').addEventListener('click', () => {
+    socket.emit('meeting-leave', (res) => {
+      if (res?.error) showError(res.error);
+      else window.location.href = '/';
+    });
+  });
+
+  $('end-meeting').addEventListener('click', () => {
+    if (!window.confirm('End this meeting for everyone? This cannot be undone.')) return;
+    socket.emit('meeting-end', (res) => {
+      if (res?.error) showError(res.error);
+      else window.location.href = '/';
+    });
+  });
+
+  socket.on('meeting-left', () => {
+    window.location.href = '/';
   });
 
   socket.on('call-member-joined', (participant) => {
@@ -488,6 +510,7 @@
       $('call-name-overlay').hidden = true;
       $('call-page-status').textContent = call ? `${call.type === 'video' ? 'Video' : 'Audio'} call in progress` : 'Waiting for the admin';
       setCallState(call);
+      renderControls();
       if (call) {
         res.participants.forEach((participant) => {
           updateParticipant(participant);

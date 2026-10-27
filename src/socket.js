@@ -6,6 +6,9 @@ const FILE_LIMITS = {
   'application/pdf': 4_000_000,
   'video/mp4': 5_000_000,
   'video/webm': 5_000_000,
+  'audio/webm': 5_000_000,
+  'audio/ogg': 5_000_000,
+  'audio/mp4': 5_000_000,
 };
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 const clean = (value, max) => String(value || '').trim().slice(0, max);
@@ -13,9 +16,12 @@ const safeFileName = (value) => clean(value, 100).replace(/[\\/]/g, '_') || 'sha
 
 const getDataUrlSize = (dataUrl, mimeType, maxBytes) => {
   if (typeof dataUrl !== 'string') return null;
-  const prefix = `data:${mimeType};base64,`;
-  if (!dataUrl.startsWith(prefix)) return null;
-  const encoded = dataUrl.slice(prefix.length);
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) return null;
+  const header = dataUrl.slice(0, comma);
+  const dataMime = /^data:([^;,]+)(?:;[^,]*)?;base64$/.exec(header)?.[1]?.toLowerCase();
+  if (dataMime !== mimeType) return null;
+  const encoded = dataUrl.slice(comma + 1);
   if (!encoded || encoded.length % 4 !== 0) return null;
   if (encoded.length > Math.ceil(maxBytes / 3) * 4) return maxBytes + 1;
   const chunkSize = 8192;
@@ -198,7 +204,7 @@ module.exports = (io, rooms) => {
       const maxBytes = image
         ? 4_500_000
         : Object.prototype.hasOwnProperty.call(FILE_LIMITS, mimeType) ? FILE_LIMITS[mimeType] : null;
-      if (!maxBytes) return fail('Only PNG, JPEG, GIF, WebP, PDF, MP4, and WebM files can be shared.');
+      if (!maxBytes) return fail('Only PNG, JPEG, GIF, WebP, PDF, MP4, WebM, and recorded voice notes can be shared.');
 
       const size = getDataUrlSize(dataUrl, mimeType, maxBytes);
       if (size === null) return fail('The file data is invalid or does not match its file type.');
@@ -211,13 +217,45 @@ module.exports = (io, rooms) => {
         dataUrl,
         fileName: safeFileName(fileName),
         mimeType,
-        fileKind: image ? 'image' : mimeType === 'application/pdf' ? 'pdf' : 'video',
+        fileKind: image ? 'image' : mimeType === 'application/pdf' ? 'pdf' : mimeType.startsWith('audio/') ? 'audio' : 'video',
       });
       ack?.({ ok: true });
     });
 
+    socket.on('meeting-leave', (ack) => {
+      if (!room || !member) return ack?.({ error: 'You are not in a meeting.' });
+      if (member.callSocketId) {
+        io.to(room.code).emit('call-member-left', { id: member.callSocketId, memberId: member.id });
+      }
+
+      const sockets = [...member.sockets];
+      room.members.delete(member.id);
+      member.sockets.clear();
+      member.adminSocketIds.clear();
+      member.callSocketId = null;
+      member.callViewSocketId = null;
+      member.leaving = true;
+      publishMembers();
+      ack?.({ ok: true });
+
+      sockets.forEach((socketId) => {
+        const memberSocket = io.sockets.sockets.get(socketId);
+        if (memberSocket) memberSocket.emit('meeting-left');
+      });
+      setTimeout(() => {
+        sockets.forEach((socketId) => io.sockets.sockets.get(socketId)?.disconnect(true));
+      }, 100);
+    });
+
+    socket.on('meeting-end', (ack) => {
+      if (!room || !isSocketAdmin) return ack?.({ error: 'Only the meeting admin can end this meeting.' });
+      const code = room.code;
+      ack?.({ ok: true });
+      rooms.expire(code);
+    });
+
     socket.on('disconnect', () => {
-      if (!room || !member) return;
+      if (!room || !member || member.leaving) return;
       member.sockets.delete(socket.id);
       member.adminSocketIds.delete(socket.id);
       member.isAdmin = member.adminSocketIds.size > 0;

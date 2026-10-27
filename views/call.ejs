@@ -7,7 +7,11 @@
       <strong><%= room.name %></strong>
       <span id="call-page-status">Connecting to call…</span>
     </div>
-    <a href="/room/<%= encodeURIComponent(room.code) %>" class="btn btn-light">Back to chat</a>
+    <div class="room-exit-actions">
+      <a href="/room/<%= encodeURIComponent(room.code) %>" class="btn btn-light">Back to chat</a>
+      <button class="btn btn-danger" id="end-meeting" type="button" hidden>End meeting</button>
+      <button class="btn btn-light" id="leave-meeting" type="button" disabled>Leave meeting</button>
+    </div>
   </header>
   <main class="call-content">
     <div class="call-content-heading">

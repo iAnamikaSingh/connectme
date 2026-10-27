@@ -9,6 +9,11 @@
   let call = null;
   let joinedName = null;
   let timerInterval = null;
+  let voiceRecorder = null;
+  let voiceStream = null;
+  let voiceChunks = [];
+  let voiceSize = 0;
+  let voiceTooLarge = false;
 
   const getMemberId = () => {
     let id = localStorage.getItem('connectme:member');
@@ -35,6 +40,9 @@
     $('call-start-audio').hidden = !isAdmin || Boolean(call);
     $('call-start-video').hidden = !isAdmin || Boolean(call);
     $('call-end').hidden = !isAdmin || !call;
+    $('end-meeting').hidden = !isAdmin;
+    $('end-meeting').disabled = !connected;
+    $('leave-meeting').disabled = !connected;
     $('call-start-audio').disabled = !connected;
     $('call-start-video').disabled = !connected;
     $('call-end').disabled = !connected;
@@ -98,23 +106,53 @@
     node.className = `msg${mine ? ' mine' : ''}`;
     node.append(Object.assign(document.createElement('small'), { textContent: mine ? 'You' : name }));
 
-    if (fileKind === 'image') {
-      node.append(Object.assign(document.createElement('img'), { src: dataUrl, alt: fileName }));
-    } else if (fileKind === 'video') {
-      const video = Object.assign(document.createElement('video'), { controls: true, preload: 'metadata' });
-      video.append(Object.assign(document.createElement('source'), { src: dataUrl, type: mimeType }));
-      node.append(video);
-    } else {
-      const file = document.createElement('span');
-      file.className = 'shared-file';
-      file.append(Object.assign(document.createElement('span'), { textContent: 'PDF:' }));
-      file.append(Object.assign(document.createElement('a'), { href: dataUrl, download: fileName, textContent: fileName }));
-      node.append(file);
-    }
-
     $('chat-log').append(node);
     $('chat-log').scrollTop = $('chat-log').scrollHeight;
+    fetch(dataUrl).then((response) => response.blob()).then((blob) => {
+      const fileUrl = URL.createObjectURL(blob);
+      window.addEventListener('pagehide', () => URL.revokeObjectURL(fileUrl), { once: true });
+      const attachment = document.createElement('section');
+      attachment.className = 'shared-attachment';
+      const title = Object.assign(document.createElement('strong'), { className: 'shared-attachment-name', textContent: fileName, title: fileName });
+      const actions = document.createElement('div');
+      actions.className = 'shared-attachment-actions';
+      const preview = Object.assign(document.createElement('a'), { href: fileUrl, target: '_blank', rel: 'noopener', textContent: 'Preview' });
+      const download = Object.assign(document.createElement('a'), { href: fileUrl, download: fileName, textContent: 'Download' });
+      actions.append(preview, download);
+      attachment.append(title);
+      if (fileKind === 'image') {
+        attachment.prepend(Object.assign(document.createElement('img'), { src: fileUrl, alt: fileName }));
+      } else if (fileKind === 'video') {
+        attachment.prepend(Object.assign(document.createElement('video'), { src: fileUrl, controls: true, preload: 'metadata' }));
+      } else if (fileKind === 'audio') {
+        attachment.prepend(Object.assign(document.createElement('audio'), { src: fileUrl, controls: true, preload: 'metadata' }));
+      }
+      attachment.append(actions);
+      node.append(attachment);
+      $('chat-log').scrollTop = $('chat-log').scrollHeight;
+    }).catch(() => {
+      node.append(Object.assign(document.createElement('span'), { textContent: 'Could not preview this file.' }));
+    });
   };
+
+  const leaveMeeting = () => {
+    socket.emit('meeting-leave', (res) => {
+      if (res?.error) alert(res.error);
+      else window.location.href = '/';
+    });
+  };
+
+  $('leave-meeting').addEventListener('click', leaveMeeting);
+  $('end-meeting').addEventListener('click', () => {
+    if (!window.confirm('End this meeting for everyone? This cannot be undone.')) return;
+    socket.emit('meeting-end', (res) => {
+      if (res?.error) alert(res.error);
+      else window.location.href = '/';
+    });
+  });
+  socket.on('meeting-left', () => {
+    window.location.href = '/';
+  });
 
   const joinRoom = () => {
     if (!joinedName || !socket.connected) return;
@@ -187,8 +225,7 @@
     $('chat-input').value = '';
   });
 
-  $('image-input').addEventListener('change', ({ target }) => {
-    const [file] = target.files;
+  const shareFile = (file, target) => {
     if (!file) return;
 
     const extensionType = {
@@ -231,5 +268,106 @@
     reader.onerror = () => alert('Could not read that file. Please try again.');
     reader.readAsDataURL(file);
     target.value = '';
+  };
+
+  $('attach-menu').querySelectorAll('[data-accept]').forEach((option) => {
+    option.addEventListener('click', () => {
+      const input = $('image-input');
+      input.accept = option.dataset.accept;
+      input.click();
+      $('attach-menu').open = false;
+    });
+  });
+
+  $('image-input').addEventListener('change', ({ target }) => {
+    const [file] = target.files;
+    shareFile(file, target);
+  });
+
+  const setVoiceStatus = (message) => {
+    $('voice-note-status').textContent = message;
+    $('voice-note-status').hidden = !message;
+  };
+
+  const resetVoiceRecorder = () => {
+    voiceStream?.getTracks().forEach((track) => track.stop());
+    voiceStream = null;
+    voiceRecorder = null;
+    voiceChunks = [];
+    voiceSize = 0;
+    $('record-voice').classList.remove('recording');
+    $('record-voice').setAttribute('aria-pressed', 'false');
+    $('record-voice').title = 'Record a voice message';
+    $('record-voice').setAttribute('aria-label', 'Record a voice message');
+  };
+
+  const sendVoiceNote = (blob, mimeType) => {
+    if (blob.size > 5_000_000) {
+      alert('Voice messages must be no larger than 5 MB.');
+      return;
+    }
+    const extension = mimeType === 'audio/ogg' ? 'ogg' : mimeType === 'audio/mp4' ? 'm4a' : 'webm';
+    const reader = new FileReader();
+    reader.onload = () => {
+      socket.emit('file-share', {
+        dataUrl: reader.result,
+        fileName: `voice-message-${Date.now()}.${extension}`,
+        mimeType,
+      }, (res) => {
+        if (res?.error) alert(res.error);
+        else setVoiceStatus('Voice message sent.');
+      });
+    };
+    reader.onerror = () => alert('Could not read the voice message. Please try again.');
+    reader.readAsDataURL(blob);
+  };
+
+  $('record-voice').addEventListener('click', async () => {
+    if (voiceRecorder?.state === 'recording') {
+      voiceRecorder.stop();
+      $('record-voice').disabled = true;
+      setVoiceStatus('Sending voice message…');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      setVoiceStatus('Voice recording is not supported by this browser.');
+      return;
+    }
+    try {
+      voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = ['audio/webm', 'audio/ogg', 'audio/mp4'].find((type) => MediaRecorder.isTypeSupported(type));
+      voiceRecorder = new MediaRecorder(voiceStream, mimeType ? { mimeType } : undefined);
+      voiceChunks = [];
+      voiceSize = 0;
+      voiceTooLarge = false;
+      voiceRecorder.addEventListener('dataavailable', ({ data }) => {
+        if (!data.size) return;
+        voiceSize += data.size;
+        if (voiceSize > 5_000_000) {
+          voiceTooLarge = true;
+          voiceRecorder.stop();
+          return;
+        }
+        voiceChunks.push(data);
+      });
+      voiceRecorder.addEventListener('stop', () => {
+        const recordingType = voiceRecorder.mimeType.split(';')[0];
+        const recording = new Blob(voiceChunks, { type: recordingType });
+        if (voiceTooLarge) alert('Voice messages must be no larger than 5 MB.');
+        else if (!recording.size) setVoiceStatus('No audio was recorded. Try again and check your microphone.');
+        else sendVoiceNote(recording, recordingType);
+        resetVoiceRecorder();
+        $('record-voice').disabled = false;
+      }, { once: true });
+      voiceRecorder.start(1000);
+      $('record-voice').classList.add('recording');
+      $('record-voice').setAttribute('aria-pressed', 'true');
+      $('record-voice').title = 'Stop recording and send voice message';
+      $('record-voice').setAttribute('aria-label', 'Stop recording and send voice message');
+      setVoiceStatus('Recording… select the microphone again to send.');
+    } catch (error) {
+      resetVoiceRecorder();
+      setVoiceStatus(`Could not access your microphone: ${error.message}`);
+    }
   });
 })();
