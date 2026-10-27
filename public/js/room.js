@@ -3,74 +3,82 @@
   const code = roomEl.dataset.code;
   const $ = (id) => document.getElementById(id);
   const socket = io();
-  const peers = new Map();
-  const localStream = new MediaStream();
-  const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-  let cameraTrack = null;
-  let micTrack = null;
-  let screenTrack = null;
+  const nameKey = `connectme:name:${code}`;
   let selfId = null;
+  let isAdmin = false;
+  let call = null;
+  let joinedName = null;
+  let timerInterval = null;
 
-  const createTile = (id, name) => {
-    const tile = document.createElement('div');
-    tile.className = 'tile';
-    const video = Object.assign(document.createElement('video'), { autoplay: true, playsInline: true, muted: id === 'self' });
-    const label = Object.assign(document.createElement('span'), { textContent: id === 'self' ? `${name} (you)` : name });
-    tile.append(video, label);
-    $('tiles').append(tile);
-    return { tile, video };
-  };
-
-  const kindSender = (pc, kind) => pc.getTransceivers().find((t) => t.receiver.track.kind === kind).sender;
-
-  const createPeer = (id, name, initiator) => {
-    const pc = new RTCPeerConnection(rtcConfig);
-    const { tile, video } = createTile(id, name);
-    const remote = new MediaStream();
-    video.srcObject = remote;
-    peers.set(id, { pc, tile });
-
-    [['audio', micTrack], ['video', cameraTrack]].forEach(([kind, track]) =>
-      track ? pc.addTrack(track, localStream) : pc.addTransceiver(kind));
-
-    pc.onicecandidate = ({ candidate }) => candidate && socket.emit('signal', { to: id, data: { candidate } });
-    pc.ontrack = ({ track }) => remote.addTrack(track);
-    if (initiator) {
-      pc.onnegotiationneeded = async () => {
-        await pc.setLocalDescription(await pc.createOffer());
-        socket.emit('signal', { to: id, data: { description: pc.localDescription } });
-      };
+  const getMemberId = () => {
+    let id = localStorage.getItem('connectme:member');
+    if (!id) {
+      id = window.crypto?.randomUUID?.() || `member-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('connectme:member', id);
     }
-    return pc;
+    return id;
   };
 
-  const removePeer = (id) => {
-    const peer = peers.get(id);
-    if (!peer) return;
-    peer.pc.close();
-    peer.tile.remove();
-    peers.delete(id);
+  const startTimer = (expiresAt) => {
+    $('timer').hidden = false;
+    clearInterval(timerInterval);
+    const tick = () => {
+      const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+      $('timer-text').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    };
+    tick();
+    timerInterval = setInterval(tick, 1000);
   };
 
-  socket.on('signal', async ({ from, data }) => {
-    const pc = peers.get(from)?.pc || createPeer(from, 'Guest', false);
-    if (data.description) {
-      await pc.setRemoteDescription(data.description);
-      if (data.description.type === 'offer') {
-        await pc.setLocalDescription(await pc.createAnswer());
-        socket.emit('signal', { to: from, data: { description: pc.localDescription } });
+  const renderCall = () => {
+    const connected = socket.connected && Boolean(selfId);
+    $('call-start-audio').hidden = !isAdmin || Boolean(call);
+    $('call-start-video').hidden = !isAdmin || Boolean(call);
+    $('call-end').hidden = !isAdmin || !call;
+    $('call-start-audio').disabled = !connected;
+    $('call-start-video').disabled = !connected;
+    $('call-end').disabled = !connected;
+    $('call-join').hidden = !call;
+    $('call-view').hidden = !call;
+
+    if (call) {
+      const label = call.type === 'video' ? 'video' : 'audio';
+      $('call-state-label').textContent = `A ${label} call is live`;
+      $('call-state-help').textContent = 'Join the call or keep chatting. You can also view the call without joining.';
+      $('call-join').href = `/room/${encodeURIComponent(code)}/call?join=1`;
+      $('call-join').textContent = 'Join call';
+      $('call-view').href = `/room/${encodeURIComponent(code)}/call`;
+    } else {
+      $('call-state-label').textContent = 'No call is active';
+      $('call-state-help').textContent = isAdmin ? 'Start an audio or video call when the room is ready.' : 'The admin can start an audio or video call.';
+    }
+  };
+
+  const renderMembers = (members) => {
+    $('member-list').replaceChildren();
+    $('member-count').textContent = `${members.length} ${members.length === 1 ? 'member' : 'members'}`;
+    members.forEach((member) => {
+      const item = document.createElement('li');
+      item.className = 'member-item';
+      const name = document.createElement('span');
+      name.className = 'member-name';
+      name.textContent = member.id === selfId ? `${member.name} (you)` : member.name;
+      item.append(name);
+      if (member.isAdmin) {
+        const badge = document.createElement('span');
+        badge.className = 'admin-badge';
+        badge.textContent = 'Admin';
+        item.append(badge);
       }
-    } else if (data.candidate) {
-      await pc.addIceCandidate(data.candidate).catch(() => {});
-    }
-  });
-
-  socket.on('peer-joined', ({ id, name }) => {
-    const peer = peers.get(id);
-    if (peer) peer.tile.querySelector('span').textContent = name;
-    else createPeer(id, name, false);
-  });
-  socket.on('peer-left', ({ id }) => removePeer(id));
+      if (member.inCall) {
+        const status = document.createElement('span');
+        status.className = 'call-member-status';
+        status.textContent = 'In call';
+        item.append(status);
+      }
+      $('member-list').append(item);
+    });
+  };
 
   const addChat = ({ from, name, text, dataUrl }) => {
     const mine = from === selfId;
@@ -79,12 +87,73 @@
     const author = Object.assign(document.createElement('small'), { textContent: mine ? 'You' : name });
     node.append(author);
     if (dataUrl) node.append(Object.assign(document.createElement('img'), { src: dataUrl, alt: 'Shared image' }));
-    else node.append(text);
+    else node.append(document.createTextNode(text));
     $('chat-log').append(node);
     $('chat-log').scrollTop = $('chat-log').scrollHeight;
   };
+
+  const joinRoom = () => {
+    if (!joinedName || !socket.connected) return;
+    socket.emit('join', {
+      code,
+      name: joinedName,
+      memberId: getMemberId(),
+      adminToken: sessionStorage.getItem(`connectme:admin:${code}`),
+    }, (res) => {
+      if (res.error) return alert(res.error);
+      selfId = res.id;
+      isAdmin = res.isAdmin;
+      call = res.call;
+      $('join-overlay').hidden = true;
+      renderMembers(res.members);
+      renderCall();
+      if (res.expiresAt) startTimer(res.expiresAt);
+    });
+  };
+
+  socket.on('connect', joinRoom);
+  socket.on('disconnect', () => {
+    selfId = null;
+    renderCall();
+    $('call-state-help').textContent = 'Connection lost. Reconnecting…';
+  });
+
+  $('name-input').value = localStorage.getItem(nameKey) || '';
+  $('name-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    joinedName = $('name-input').value.trim();
+    localStorage.setItem(nameKey, joinedName);
+    joinRoom();
+  });
+
+  socket.on('member-list', renderMembers);
+  socket.on('call-state', (state) => {
+    call = state;
+    renderCall();
+  });
   socket.on('chat', addChat);
   socket.on('image', addChat);
+  socket.on('room-expired', () => {
+    $('expired-overlay').hidden = false;
+  });
+
+  $('call-start-audio').addEventListener('click', () => {
+    socket.emit('call-start', { type: 'audio' }, (res) => {
+      if (res.error) alert(res.error);
+    });
+  });
+  $('call-start-video').addEventListener('click', () => {
+    socket.emit('call-start', { type: 'video' }, (res) => {
+      if (res.error) alert(res.error);
+    });
+  });
+  $('call-end').addEventListener('click', () => {
+    if (window.confirm('End the call for everyone?')) {
+      socket.emit('call-end', (res) => {
+        if (res.error) alert(res.error);
+      });
+    }
+  });
 
   $('chat-form').addEventListener('submit', (event) => {
     event.preventDefault();
@@ -95,107 +164,15 @@
 
   $('image-input').addEventListener('change', ({ target }) => {
     const [file] = target.files;
-    if (!file || file.size > 4.5e6) return alert('Please choose an image under 4.5 MB.');
+    if (!file) return;
+    if (file.size > 4.5e6) {
+      alert('Please choose an image under 4.5 MB.');
+      target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => socket.emit('image', { dataUrl: reader.result, fileName: file.name });
     reader.readAsDataURL(file);
     target.value = '';
-  });
-
-  const updateTrackControl = (track, button, onIcon, offIcon, label, stateId) => {
-    const enabled = Boolean(track && track.enabled);
-    const action = track ? `Turn ${label.toLowerCase()} ${enabled ? 'off' : 'on'}` : `${label} unavailable`;
-    button.classList.toggle('off', !enabled);
-    button.querySelector('use').setAttribute('href', `#i-${enabled ? onIcon : offIcon}`);
-    button.title = action;
-    button.setAttribute('aria-label', action);
-    button.setAttribute('aria-pressed', String(enabled));
-    $(stateId).textContent = track ? (enabled ? 'On' : 'Off') : 'Unavailable';
-  };
-  const toggleTrack = (track, button, onIcon, offIcon, label, stateId) => {
-    if (!track) return;
-    track.enabled = !track.enabled;
-    updateTrackControl(track, button, onIcon, offIcon, label, stateId);
-  };
-  $('btn-mic').addEventListener('click', () => toggleTrack(micTrack, $('btn-mic'), 'mic', 'mic-off', 'microphone', 'mic-state'));
-  $('btn-cam').addEventListener('click', () => toggleTrack(cameraTrack, $('btn-cam'), 'video', 'video-off', 'camera', 'cam-state'));
-
-  const setVideoTrack = (track, previewStream) => {
-    peers.forEach(({ pc }, id) => id !== 'self' && kindSender(pc, 'video').replaceTrack(track));
-    peers.get('self').tile.querySelector('video').srcObject = previewStream;
-  };
-
-  const stopScreenShare = () => {
-    screenTrack?.stop();
-    screenTrack = null;
-    $('btn-screen').classList.remove('off');
-    $('btn-screen').title = 'Share your screen';
-    $('btn-screen').setAttribute('aria-label', 'Share your screen');
-    $('btn-screen').setAttribute('aria-pressed', 'false');
-    $('screen-state').textContent = 'Start';
-    setVideoTrack(cameraTrack, localStream);
-  };
-
-  $('btn-screen').addEventListener('click', async () => {
-    if (screenTrack) return stopScreenShare();
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-      screenTrack = stream.getVideoTracks()[0];
-      screenTrack.onended = stopScreenShare;
-      $('btn-screen').classList.add('off');
-      $('btn-screen').title = 'Stop sharing your screen';
-      $('btn-screen').setAttribute('aria-label', 'Stop sharing your screen');
-      $('btn-screen').setAttribute('aria-pressed', 'true');
-      $('screen-state').textContent = 'Sharing';
-      setVideoTrack(screenTrack, stream);
-    } catch { /* user cancelled */ }
-  });
-
-  const startTimer = (expiresAt) => {
-    $('timer').hidden = false;
-    const tick = () => {
-      const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
-      $('timer-text').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
-    };
-    tick();
-    setInterval(tick, 1000);
-  };
-
-  socket.on('room-expired', () => {
-    peers.forEach((_, id) => removePeer(id));
-    $('expired-overlay').hidden = false;
-  });
-
-  const getMedia = async () => {
-    const attempts = [{ audio: true, video: true }, { audio: true }];
-    for (const constraints of attempts) {
-      try { return await navigator.mediaDevices.getUserMedia(constraints); } catch { /* try next */ }
-    }
-    return new MediaStream();
-  };
-
-  $('name-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const stream = await getMedia();
-    [micTrack] = stream.getAudioTracks();
-    [cameraTrack] = stream.getVideoTracks();
-    stream.getTracks().forEach((track) => localStream.addTrack(track));
-
-    const name = $('name-input').value.trim();
-    const adminToken = sessionStorage.getItem(`connectme:admin:${code}`);
-    socket.emit('join', { code, name, adminToken }, (res) => {
-      if (res.error) return alert(res.error);
-      selfId = res.id;
-      $('join-overlay').hidden = true;
-      const { video } = createTile('self', name);
-      video.srcObject = localStream;
-      peers.set('self', { pc: { close() {}, getTransceivers: () => [] }, tile: video.parentElement });
-      res.peers.forEach((peer) => createPeer(peer.id, peer.name, true));
-      if (res.expiresAt) startTimer(res.expiresAt);
-      updateTrackControl(micTrack, $('btn-mic'), 'mic', 'mic-off', 'microphone', 'mic-state');
-      updateTrackControl(cameraTrack, $('btn-cam'), 'video', 'video-off', 'camera', 'cam-state');
-      if (!cameraTrack) $('btn-cam').disabled = true;
-      if (!micTrack) $('btn-mic').disabled = true;
-    });
   });
 })();

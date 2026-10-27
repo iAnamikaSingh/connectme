@@ -17,6 +17,7 @@ const rooms = {
       expiryVisibleTo: expiryVisibleTo === 'admin' ? 'admin' : 'everyone',
       expiresAt: Date.now() + mins * 60000,
       members: new Map(),
+      call: null,
     };
     room.timer = setTimeout(() => rooms.expire(code), mins * 60000);
     store.set(code, room);

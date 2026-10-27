@@ -1,0 +1,47 @@
+<% const bodyClass = 'in-room'; %>
+<%- include('partials/head', { bodyClass }) %>
+<div class="call-page" id="call-page" data-code="<%= room.code %>">
+  <header class="room-bar">
+    <a href="/room/<%= encodeURIComponent(room.code) %>" class="logo" title="Return to meeting chat"><img src="/favicon.svg" alt="" width="28" height="28"><span>connectme</span></a>
+    <div class="room-heading">
+      <strong><%= room.name %></strong>
+      <span id="call-page-status">Connecting to call…</span>
+    </div>
+    <a href="/room/<%= encodeURIComponent(room.code) %>" class="btn btn-light">Back to chat</a>
+  </header>
+  <main class="call-content">
+    <div class="call-content-heading">
+      <div>
+        <h1 id="call-title">Live call</h1>
+        <p id="call-description">Participants in the call will appear here.</p>
+      </div>
+      <span class="call-count" id="call-count">0 participants</span>
+    </div>
+    <section class="call-tiles" id="call-tiles" aria-label="Call participants"></section>
+    <p class="call-error" id="call-error" role="alert" hidden></p>
+    <div class="call-controls" aria-label="Call controls">
+      <button class="btn btn-primary" id="call-join" type="button" disabled>Waiting for call</button>
+      <button class="ctl" id="call-mic" type="button" hidden aria-pressed="true"><%- include('partials/icon', { n: 'mic' }) %><span class="ctl-caption"><span>Microphone</span><small>On</small></span></button>
+      <button class="ctl" id="call-camera" type="button" hidden aria-pressed="true"><%- include('partials/icon', { n: 'video' }) %><span class="ctl-caption"><span>Camera</span><small>On</small></span></button>
+      <button class="ctl" id="call-screen" type="button" hidden aria-pressed="false"><%- include('partials/icon', { n: 'screen' }) %><span class="ctl-caption"><span>Share screen</span><small>Start</small></span></button>
+      <button class="btn btn-danger" id="call-leave" type="button" hidden>Leave call</button>
+      <button class="btn btn-light" id="call-watch" type="button" hidden>Return to chat</button>
+    </div>
+  </main>
+  <div class="overlay" id="call-name-overlay">
+    <form class="panel" id="call-name-form">
+      <h1>Join this room</h1>
+      <p>Enter your name to view the call and room participants.</p>
+      <label>Your name<input id="call-name-input" maxlength="40" required autofocus></label>
+      <button class="btn btn-primary btn-lg">Continue</button>
+    </form>
+  </div>
+  <div class="overlay" id="expired-overlay" hidden>
+    <div class="panel"><h1>This meeting has ended</h1><a href="/create" class="btn btn-primary btn-lg">Start a new one</a></div>
+  </div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/call.js"></script>
+<%- include('partials/chatbot') %>
+<script src="/js/chatbot.js" defer></script>
+</body></html>

@@ -32,6 +32,13 @@ router.get('/room/:code', (req, res) => {
   res.render('room', { ...meta, title: `${room.name} | connectme`, description: 'Private meeting room.', room });
 });
 
+router.get('/room/:code/call', (req, res) => {
+  const room = rooms.get(req.params.code);
+  const meta = { ...base(req), noindex: true };
+  if (!room) return res.status(404).render('notfound', { ...meta, title: 'Meeting not found | connectme', description: 'This meeting has expired or does not exist.' });
+  res.render('call', { ...meta, title: `Call | ${room.name}`, description: 'Join or view the live connectme call.', room });
+});
+
 router.get('/robots.txt', (req, res) => res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${SITE_URL}/sitemap.xml\n`));
 router.get('/sitemap.xml', (req, res) => {
   const urls = ['/', '/create', '/join'].map((p) => `<url><loc>${SITE_URL}${p}</loc></url>`).join('');
