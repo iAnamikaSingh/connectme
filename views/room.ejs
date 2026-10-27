@@ -13,7 +13,7 @@
     <main class="chat" aria-label="Meeting chat">
       <div class="chat-heading">
         <strong><%- include('partials/icon', { n: 'chat' }) %> Meeting chat</strong>
-        <span>Messages and shared images</span>
+        <span>Messages, images, PDFs up to 4 MB, and videos up to 5 MB</span>
       </div>
       <section class="room-call-panel" aria-label="Call controls">
         <div>
@@ -30,8 +30,8 @@
       </section>
       <div class="chat-log" id="chat-log" aria-live="polite"></div>
       <form class="chat-form" id="chat-form">
-        <label class="icon-btn" title="Attach an image" aria-label="Attach an image"><%- include('partials/icon', { n: 'image' }) %>
-          <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden></label>
+        <label class="icon-btn" title="Attach an image, PDF, or video" aria-label="Attach an image, PDF, or video"><%- include('partials/icon', { n: 'image' }) %>
+          <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,video/mp4,video/webm" hidden></label>
         <input id="chat-input" placeholder="Message everyone" autocomplete="off" aria-label="Message">
         <button class="btn btn-primary icon-only" title="Send message" aria-label="Send message"><%- include('partials/icon', { n: 'send' }) %></button>
       </form>

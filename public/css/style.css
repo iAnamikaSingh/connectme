@@ -90,7 +90,10 @@ fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; } legend {
 .chat-log { padding: 14px; overflow: auto; display: grid; align-content: start; gap: 10px; }
 .msg { max-width: 85%; padding: 8px 12px; border-radius: 14px 14px 14px 4px; background: #eef1f4; animation: rise .2s ease both; overflow-wrap: anywhere; }
 .msg.mine { justify-self: end; background: var(--blue); color: #fff; border-radius: 14px 14px 4px 14px; }
-.msg small { display: block; opacity: .7; font-size: .75rem; } .msg img { max-width: 100%; border-radius: 8px; margin-top: 4px; }
+.msg small { display: block; opacity: .7; font-size: .75rem; } .msg img, .msg video { display: block; max-width: 100%; max-height: 320px; border-radius: 8px; margin-top: 4px; }
+.msg video { width: min(100%, 420px); background: #111d2e; }
+.msg .shared-file { display: inline-flex; align-items: center; gap: 7px; margin-top: 5px; overflow-wrap: anywhere; }
+.msg .shared-file a { color: inherit; font-weight: 600; }
 .chat-form, .bot-form { display: flex; align-items: center; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
 .chat-form input, .bot-form input { flex: 1; min-width: 0; }
 .room-body > .chat { border-left: 0; grid-template-rows: auto auto minmax(0, 1fr) auto; }

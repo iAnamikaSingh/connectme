@@ -3,7 +3,7 @@ const KNOWLEDGE = [
   { keys: ['join', 'passcode', 'code', 'enter'], answer: 'Enter the passcode you were given, or open the link directly.', links: [{ label: 'Join a meeting', href: '/join' }] },
   { keys: ['expire', 'expiry', 'how long', 'time'], answer: 'Rooms last 60 minutes by default. Hosts can choose from 5 minutes to 24 hours, and decide whether guests can see the countdown.', links: [{ label: 'Set expiry', href: '/create' }] },
   { keys: ['screen', 'present', 'share'], answer: 'Use the screen icon in the meeting toolbar to share a tab, window or your whole screen.', links: [] },
-  { keys: ['image', 'photo', 'picture', 'file'], answer: 'Click the image icon next to the chat box. Everyone in the room will see it.', links: [] },
+  { keys: ['image', 'photo', 'picture', 'file', 'pdf', 'video', 'attachment'], answer: 'Use the attachment icon next to chat to share PNG, JPEG, GIF, or WebP images (up to 4.5 MB), PDFs (up to 4 MB), or MP4/WebM videos (up to 5 MB).', links: [] },
   { keys: ['video', 'voice', 'call', 'camera', 'mic'], answer: 'Use the mic and camera buttons in the toolbar. Turn the camera off for a voice-only call.', links: [] },
   { keys: ['price', 'free', 'cost', 'account', 'sign'], answer: 'connectme is free and needs no account.', links: [{ label: 'FAQ', href: '/#faq' }] },
   { keys: ['hi', 'hello', 'hey'], answer: 'Hi! I can help you create or join a meeting, or explain any feature.', links: [] },

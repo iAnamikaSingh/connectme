@@ -92,6 +92,30 @@
     $('chat-log').scrollTop = $('chat-log').scrollHeight;
   };
 
+  const addSharedFile = ({ from, name, dataUrl, fileName, mimeType, fileKind }) => {
+    const mine = from === selfId;
+    const node = document.createElement('div');
+    node.className = `msg${mine ? ' mine' : ''}`;
+    node.append(Object.assign(document.createElement('small'), { textContent: mine ? 'You' : name }));
+
+    if (fileKind === 'image') {
+      node.append(Object.assign(document.createElement('img'), { src: dataUrl, alt: fileName }));
+    } else if (fileKind === 'video') {
+      const video = Object.assign(document.createElement('video'), { controls: true, preload: 'metadata' });
+      video.append(Object.assign(document.createElement('source'), { src: dataUrl, type: mimeType }));
+      node.append(video);
+    } else {
+      const file = document.createElement('span');
+      file.className = 'shared-file';
+      file.append(Object.assign(document.createElement('span'), { textContent: 'PDF:' }));
+      file.append(Object.assign(document.createElement('a'), { href: dataUrl, download: fileName, textContent: fileName }));
+      node.append(file);
+    }
+
+    $('chat-log').append(node);
+    $('chat-log').scrollTop = $('chat-log').scrollHeight;
+  };
+
   const joinRoom = () => {
     if (!joinedName || !socket.connected) return;
     socket.emit('join', {
@@ -133,6 +157,7 @@
   });
   socket.on('chat', addChat);
   socket.on('image', addChat);
+  socket.on('file-share', addSharedFile);
   socket.on('room-expired', () => {
     $('expired-overlay').hidden = false;
   });
@@ -165,13 +190,45 @@
   $('image-input').addEventListener('change', ({ target }) => {
     const [file] = target.files;
     if (!file) return;
-    if (file.size > 4.5e6) {
-      alert('Please choose an image under 4.5 MB.');
+
+    const extensionType = {
+      pdf: 'application/pdf',
+      mp4: 'video/mp4',
+      webm: 'video/webm',
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      webp: 'image/webp',
+    }[file.name.split('.').pop().toLowerCase()];
+    const mimeType = file.type || extensionType;
+    const supportedTypes = new Set([
+      'image/png', 'image/jpeg', 'image/gif', 'image/webp',
+      'application/pdf', 'video/mp4', 'video/webm',
+    ]);
+
+    if (!supportedTypes.has(mimeType)) {
+      alert('Choose a PNG, JPEG, GIF, WebP, PDF, MP4, or WebM file.');
       target.value = '';
       return;
     }
+
+    const fileKind = mimeType === 'application/pdf' ? 'pdf' : mimeType.startsWith('video/') ? 'video' : 'image';
+    const limits = { image: 4_500_000, pdf: 4_000_000, video: 5_000_000 };
+    if (file.size > limits[fileKind]) {
+      const limit = fileKind === 'image' ? '4.5 MB' : fileKind === 'pdf' ? '4 MB' : '5 MB';
+      alert(`Please choose a ${fileKind} file no larger than ${limit}.`);
+      target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = () => socket.emit('image', { dataUrl: reader.result, fileName: file.name });
+    reader.onload = () => {
+      socket.emit('file-share', { dataUrl: reader.result, fileName: file.name, mimeType }, (res) => {
+        if (res?.error) alert(res.error);
+      });
+    };
+    reader.onerror = () => alert('Could not read that file. Please try again.');
     reader.readAsDataURL(file);
     target.value = '';
   });

@@ -2,7 +2,34 @@ const crypto = require('crypto');
 
 const IMAGE_PATTERN = /^data:image\/(png|jpe?g|gif|webp);base64,/;
 const MAX_IMAGE_LENGTH = 6.5e6;
+const FILE_LIMITS = {
+  'application/pdf': 4_000_000,
+  'video/mp4': 5_000_000,
+  'video/webm': 5_000_000,
+};
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 const clean = (value, max) => String(value || '').trim().slice(0, max);
+const safeFileName = (value) => clean(value, 100).replace(/[\\/]/g, '_') || 'shared-file';
+
+const getDataUrlSize = (dataUrl, mimeType, maxBytes) => {
+  if (typeof dataUrl !== 'string') return null;
+  const prefix = `data:${mimeType};base64,`;
+  if (!dataUrl.startsWith(prefix)) return null;
+  const encoded = dataUrl.slice(prefix.length);
+  if (!encoded || encoded.length % 4 !== 0) return null;
+  if (encoded.length > Math.ceil(maxBytes / 3) * 4) return maxBytes + 1;
+  const chunkSize = 8192;
+  for (let offset = 0; offset < encoded.length; offset += chunkSize) {
+    const chunk = encoded.slice(offset, offset + chunkSize);
+    const finalChunk = offset + chunkSize >= encoded.length;
+    const pattern = finalChunk
+      ? /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
+      : /^[A-Za-z0-9+/]*$/;
+    if (!pattern.test(chunk)) return null;
+  }
+  const padding = encoded.endsWith('==') ? 2 : encoded.endsWith('=') ? 1 : 0;
+  return Math.floor(encoded.length * 3 / 4) - padding;
+};
 
 const memberList = (room) => [...room.members.values()].map(({ id, name, isAdmin, callSocketId, mediaMode }) => ({
   id,
@@ -159,6 +186,34 @@ module.exports = (io, rooms) => {
     socket.on('image', ({ dataUrl, fileName }) => {
       if (typeof dataUrl !== 'string' || !IMAGE_PATTERN.test(dataUrl) || dataUrl.length > MAX_IMAGE_LENGTH) return;
       broadcast('image', { dataUrl, fileName: clean(fileName, 80) });
+    });
+
+    socket.on('file-share', (payload, ack) => {
+      const fail = (error) => ack?.({ error });
+      if (!room || !member) return fail('Join the meeting before sharing a file.');
+      if (!payload || typeof payload !== 'object') return fail('The shared file could not be read.');
+
+      const { dataUrl, fileName, mimeType } = payload;
+      const image = IMAGE_TYPES.has(mimeType);
+      const maxBytes = image
+        ? 4_500_000
+        : Object.prototype.hasOwnProperty.call(FILE_LIMITS, mimeType) ? FILE_LIMITS[mimeType] : null;
+      if (!maxBytes) return fail('Only PNG, JPEG, GIF, WebP, PDF, MP4, and WebM files can be shared.');
+
+      const size = getDataUrlSize(dataUrl, mimeType, maxBytes);
+      if (size === null) return fail('The file data is invalid or does not match its file type.');
+      if (size > maxBytes) {
+        const limit = image ? '4.5 MB' : mimeType === 'application/pdf' ? '4 MB' : '5 MB';
+        return fail(`That file is too large. The maximum size is ${limit}.`);
+      }
+
+      broadcast('file-share', {
+        dataUrl,
+        fileName: safeFileName(fileName),
+        mimeType,
+        fileKind: image ? 'image' : mimeType === 'application/pdf' ? 'pdf' : 'video',
+      });
+      ack?.({ ok: true });
     });
 
     socket.on('disconnect', () => {
